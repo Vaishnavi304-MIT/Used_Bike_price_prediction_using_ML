@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Used Bike Price Predictor</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        h1 {
+            color: #333;
+        }
+        #prediction-form {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+        }
+        .form-group input,
+        .form-group select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        button {
+            grid-column: 1 / -1;
+            padding: 12px;
+            background-color: #007aff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 22px;
+            font-weight: 600;
+            text-align: center;
+            padding: 20px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 500px;
+            display: none; /* Hidden by default */
+        }
+        #error {
+            color: #d32f2f;
+            background: #ffebee;
+            /* ... similar styling to #result ... */
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Used Bike Price Predictor 🚲</h1>
+
+    <form id="prediction-form">
+        <div class="form-grid">
+            
+            <div class="form-group full-width">
+                <label for="bike_name">Bike Name (e.g., "royal enfield classic 350cc")</label>
+                <input type="text" id="bike_name" name="bike_name" required>
+            </div>
+            
+            <div class="form-group full-width">
+                <label for="brand">Brand (e.g., "royal enfield")</label>
+                <input type="text" id="brand" name="brand" required>
+            </div>
+
+            <div class="form-group">
+                <label for="kms_driven">KMs Driven</label>
+                <input type="number" id="kms_driven" name="kms_driven" step="100" required>
+            </div>
+
+            <div class="form-group">
+                <label for="age">Age (in years)</label>
+                <input type="number" id="age" name="age" step="0.5" required>
+            </div>
+
+            <div class="form-group">
+                <label for="power">Power (in CC)</label>
+                <input type="number" id="power" name="power" step="10" required>
+            </div>
+
+            <div class="form-group">
+                <label for="city">City (e.g., "delhi")</label>
+                <input type="text" id="city" name="city" required>
+            </div>
+
+            <div class="form-group full-width">
+                <label for="owner">Owner</label>
+                <select id="owner" name="owner" required>
+                    <option value="first owner">First Owner</option>
+                    <option value="second owner">Second Owner</option>
+                    <option value="third owner">Third Owner</option>
+                    <option value="fourth owner or more">Fourth Owner or More</option>
+                </select>
+            </div>
+
+            <button type="submit">Predict Price</button>
+        </div>
+    </form>
+
+    <div id="result"></div>
+    <div id="error"></div>
+
+    <script>
+        // This is the JavaScript part
+        
+        // 1. Find the form and the result divs on the page
+        const form = document.getElementById('prediction-form');
+        const resultDiv = document.getElementById('result');
+        const errorDiv = document.getElementById('error');
+
+        // 2. Add an event listener for when the "Submit" button is clicked
+        form.addEventListener('submit', function(event) {
+            
+            // 3. Prevent the form from refreshing the page
+            event.preventDefault();
+
+            // 4. Show "Loading..." and hide old results
+            resultDiv.innerHTML = 'Calculating...';
+            resultDiv.style.display = 'block';
+            errorDiv.style.display = 'none';
+
+            // 5. Create a FormData object to easily get all values
+            const formData = new FormData(form);
+            
+            // 6. Convert the form data into the JSON object our API expects
+            const data = {
+                bike_name: formData.get('bike_name'),
+                city: formData.get('city'),
+                kms_driven: parseFloat(formData.get('kms_driven')), // Convert to number
+                owner: formData.get('owner'),
+                age: parseFloat(formData.get('age')),               // Convert to number
+                power: parseFloat(formData.get('power')),             // Convert to number
+                brand: formData.get('brand')
+            };
+
+            // 7. Use the 'fetch' API to send the data to our Flask app
+            fetch('/predict', {
+                method: 'POST', // Use POST, as defined in app.py
+                headers: {
+                    'Content-Type': 'application/json' // Tell the server we are sending JSON
+                },
+                body: JSON.stringify(data) // Convert the data object to a JSON string
+            })
+            .then(response => response.json()) // Parse the JSON response from the server
+            .then(data => {
+                // 8. Handle the response
+                if (data.predicted_price) {
+                    // Success! Show the price.
+                    const formattedPrice = data.predicted_price.toLocaleString('en-IN', {
+                        style: 'currency',
+                        currency: 'INR',
+                        maximumFractionDigits: 0
+                    });
+                    resultDiv.innerHTML = `Predicted Price: ${formattedPrice}`;
+                    errorDiv.style.display = 'none';
+                } else if (data.error) {
+                    // Show an error if the API returned one
+                    resultDiv.style.display = 'none';
+                    errorDiv.innerHTML = `Error: ${data.error}`;
+                    errorDiv.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                // 9. Handle network errors
+                console.error('Error:', error);
+                resultDiv.style.display = 'none';
+                errorDiv.innerHTML = 'An error occurred. Please check the console.';
+                errorDiv.style.display = 'block';
+            });
+        });
+    </script>
+
+</body>
+</html>
